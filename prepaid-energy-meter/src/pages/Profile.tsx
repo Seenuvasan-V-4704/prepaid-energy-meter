@@ -1,42 +1,61 @@
-
 import type { FormEvent } from 'react'
+import { useState } from 'react'
+
 import {
-  useEffect,
-  useState,
-} from 'react'
-
-import { useAuth } from '../contexts/AuthContext'
+  useAuth,
+  type Profile as ProfileData,
+} from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-
-function isValidPhone(phone: string) {
-  return /^\+[1-9]\d{7,14}$/.test(phone)
-}
+import {
+  isValidE164Phone,
+  PHONE_EXAMPLE,
+  PHONE_FORMAT_MESSAGE,
+} from '../lib/validation'
 
 export default function Profile() {
-  const {
-    user,
-    profile,
-    refreshProfile,
-  } = useAuth()
+  const { profile } = useAuth()
 
-  const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [whatsappOptIn, setWhatsappOptIn] =
-    useState(false)
+  if (!profile) {
+    return (
+      <div className="max-w-2xl">
+        <h2 className="text-2xl font-bold text-slate-900">
+          Profile
+        </h2>
 
-  const [loading, setLoading] = useState(false)
+        <div className="mt-6 rounded-xl bg-white p-6 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
+          Your profile is not available right now. Use the
+          Retry button in the red message above, or reload
+          the page.
+        </div>
+      </div>
+    )
+  }
+
+  // key={profile.id}: the form starts fresh once per user, and is
+  // NOT reset when the profile is refreshed in the background.
+  return <ProfileForm key={profile.id} profile={profile} />
+}
+
+function ProfileForm({
+  profile,
+}: {
+  profile: ProfileData
+}) {
+  const { user, refreshProfile } = useAuth()
+
+  // These start from the saved profile ONCE. Later refreshes of the
+  // profile never overwrite what the user is typing.
+  const [fullName, setFullName] = useState(
+    profile.full_name ?? ''
+  )
+  const [phone, setPhone] = useState(profile.phone ?? '')
+  const [whatsappOptIn, setWhatsappOptIn] = useState(
+    profile.whatsapp_opt_in
+  )
+
+  const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!profile) {
-      return
-    }
-
-    setFullName(profile.full_name ?? '')
-    setPhone(profile.phone ?? '')
-    setWhatsappOptIn(profile.whatsapp_opt_in)
-  }, [profile])
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -46,36 +65,50 @@ export default function Profile() {
     setError('')
     setMessage('')
 
-    if (!phone || !isValidPhone(phone)) {
+    const cleanName = fullName.trim()
+    const cleanPhone = phone.trim()
+
+    if (!cleanName) {
+      setError('Please enter your full name.')
+      return
+    }
+
+    if (!isValidE164Phone(cleanPhone)) {
+      setError(PHONE_FORMAT_MESSAGE)
+      return
+    }
+
+    setSaving(true)
+
+    // .select().single() makes Supabase send the updated row back.
+    // If nothing was really updated, we get an error instead of a
+    // false "saved" message.
+    const { data, error: saveError } = await supabase
+      .from('profiles')
+      .update({
+        full_name: cleanName,
+        phone: cleanPhone,
+        whatsapp_opt_in: whatsappOptIn,
+      })
+      .eq('id', profile.id)
+      .select('id')
+      .single()
+
+    setSaving(false)
+
+    if (saveError || !data) {
       setError(
-        'Phone must use E.164 format, for example +919876543210.'
+        saveError && saveError.code !== 'PGRST116'
+          ? saveError.message
+          : 'Your changes were not saved because no profile row was updated. Please sign out, sign in again and retry.'
       )
       return
     }
 
-    if (!user) {
-      setError('You must be signed in.')
-      return
-    }
+    setFullName(cleanName)
+    setPhone(cleanPhone)
 
-    setLoading(true)
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName,
-        phone,
-        whatsapp_opt_in: whatsappOptIn,
-      })
-      .eq('id', user.id)
-
-    setLoading(false)
-
-    if (error) {
-      setError(error.message)
-      return
-    }
-
+    // Update the name shown in the header.
     await refreshProfile()
 
     setMessage('Profile updated successfully.')
@@ -131,7 +164,7 @@ export default function Profile() {
               onChange={(event) =>
                 setPhone(event.target.value)
               }
-              placeholder="+919876543210"
+              placeholder={PHONE_EXAMPLE}
               required
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
@@ -175,10 +208,10 @@ export default function Profile() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={saving}
             className="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading
+            {saving
               ? 'Saving...'
               : 'Save changes'}
           </button>

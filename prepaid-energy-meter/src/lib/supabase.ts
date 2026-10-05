@@ -1,16 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+import {
+  envProblems,
+  supabaseAnonKey,
+  supabaseUrl,
+} from './env'
 
-if (!supabaseUrl) {
-  throw new Error('Missing VITE_SUPABASE_URL')
+// main.tsx shows a setup screen and never loads this file when the
+// settings are wrong. This check is only a safety net.
+if (envProblems.length > 0) {
+  throw new Error(envProblems.join(' '))
 }
 
-if (!supabaseAnonKey) {
-  throw new Error('Missing VITE_SUPABASE_ANON_KEY')
-}
-
+// The frontend only ever uses the public "anon" key.
 export const supabase = createClient(
   supabaseUrl,
   supabaseAnonKey

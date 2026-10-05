@@ -18,9 +18,15 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const from =
-    (location.state as { from?: string } | null)?.from ??
-    '/dashboard'
+  const routeState = location.state as {
+    from?: string
+    message?: string
+  } | null
+
+  const from = routeState?.from ?? '/dashboard'
+
+  // For example: "Password updated" after a password reset.
+  const notice = routeState?.message ?? ''
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -98,6 +104,12 @@ export default function SignIn() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
+
+          {notice && (
+            <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+              {notice}
+            </div>
+          )}
 
           {error && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">

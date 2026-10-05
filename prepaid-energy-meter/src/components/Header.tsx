@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { useAuth } from '../contexts/AuthContext'
 
@@ -10,12 +11,20 @@ export default function Header({
   onMenuClick,
 }: HeaderProps) {
   const {
+    user,
     profile,
     signOut,
   } = useAuth()
 
   const [signingOut, setSigningOut] =
     useState(false)
+
+  const name = profile?.full_name?.trim() || ''
+
+  // First letter of the name (or the email) for the round avatar.
+  const initial = (name || user?.email || 'U')
+    .charAt(0)
+    .toUpperCase()
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -39,16 +48,29 @@ export default function Header({
         </h1>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium text-slate-800">
-            {profile?.full_name || 'User'}
-          </p>
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Name and avatar both open the Profile page.
+            On a phone only the avatar is shown. */}
+        <Link
+          to="/profile"
+          title="Your profile"
+          aria-label="Open your profile"
+          className="flex items-center gap-3 rounded-lg p-1 hover:bg-slate-50"
+        >
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-medium text-slate-800">
+              {name || 'User'}
+            </p>
 
-          <p className="text-xs capitalize text-slate-500">
-            {profile?.role || 'user'}
-          </p>
-        </div>
+            <p className="text-xs capitalize text-slate-500">
+              {profile?.role || 'user'}
+            </p>
+          </div>
+
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+            {initial}
+          </span>
+        </Link>
 
         <button
           onClick={handleSignOut}

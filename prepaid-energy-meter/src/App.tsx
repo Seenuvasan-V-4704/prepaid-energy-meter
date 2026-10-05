@@ -7,6 +7,7 @@ import {
 import AdminRoute from './components/AdminRoute'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import PublicOnlyRoute from './components/PublicOnlyRoute'
 
 import Admin from './pages/Admin'
 import Alerts from './pages/Alerts'
@@ -34,21 +35,25 @@ export default function App() {
         }
       />
 
-      <Route
-        path="/signin"
-        element={<SignIn />}
-      />
+      {/* Signed-in users are sent to the dashboard from these pages */}
+      <Route element={<PublicOnlyRoute />}>
+        <Route
+          path="/signin"
+          element={<SignIn />}
+        />
 
-      <Route
-        path="/signup"
-        element={<SignUp />}
-      />
+        <Route
+          path="/signup"
+          element={<SignUp />}
+        />
 
-      <Route
-        path="/forgot-password"
-        element={<ForgotPassword />}
-      />
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
+      </Route>
 
+      {/* Not wrapped: the reset link signs the user in briefly */}
       <Route
         path="/reset-password"
         element={<ResetPassword />}

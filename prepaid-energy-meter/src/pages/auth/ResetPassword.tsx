@@ -1,62 +1,68 @@
 import type { FormEvent } from 'react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+
+// If the email link was invalid or expired, Supabase sends the
+// visitor back here with the error in the address, either after "?"
+// or after "#". This reads it and returns a friendly message.
+function readLinkError(
+  search: string,
+  hash: string
+): string | null {
+  const fromQuery = new URLSearchParams(search)
+  const fromHash = new URLSearchParams(
+    hash.startsWith('#') ? hash.slice(1) : hash
+  )
+
+  const read = (key: string) =>
+    fromQuery.get(key) ?? fromHash.get(key)
+
+  const code = read('error_code')
+  const description = read('error_description')
+  const generic = read('error')
+
+  if (!code && !description && !generic) {
+    return null
+  }
+
+  if (
+    code === 'otp_expired' ||
+    /expired|invalid/i.test(description ?? '')
+  ) {
+    return 'This password reset link is invalid or has expired. Reset links work only once and stop working after a short time.'
+  }
+
+  return (
+    description ??
+    'We could not verify this password reset link.'
+  )
+}
 
 export default function ResetPassword() {
   const navigate = useNavigate()
+
+  // "loading" = still checking for a saved sign-in.
+  // "session" exists when the email link signed the user in.
+  const { loading: authLoading, session } = useAuth()
+
+  // Read once, when the page first opens.
+  const [linkError] = useState(() =>
+    readLinkError(
+      window.location.search,
+      window.location.hash
+    )
+  )
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] =
     useState('')
 
-  const [recoveryReady, setRecoveryReady] =
-    useState(false)
-
   const [loading, setLoading] = useState(false)
+  const [finished, setFinished] = useState(false)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    let mounted = true
-
-    async function checkSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!mounted) {
-        return
-      }
-
-      setRecoveryReady(Boolean(session))
-    }
-
-    checkSession()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!mounted) {
-          return
-        }
-
-        if (
-          event === 'PASSWORD_RECOVERY' &&
-          session
-        ) {
-          setRecoveryReady(true)
-        }
-      }
-    )
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -64,7 +70,6 @@ export default function ResetPassword() {
     event.preventDefault()
 
     setError('')
-    setMessage('')
 
     if (password.length < 8) {
       setError(
@@ -80,25 +85,121 @@ export default function ResetPassword() {
 
     setLoading(true)
 
-    const { error } =
+    const { error: updateError } =
       await supabase.auth.updateUser({
         password,
       })
 
-    setLoading(false)
-
-    if (error) {
-      setError(error.message)
+    if (updateError) {
+      setLoading(false)
+      setError(updateError.message)
       return
     }
 
-    setMessage(
-      'Password updated successfully. You can now sign in.'
-    )
+    // Shows the green box right away, so the "link not ready"
+    // box cannot flash while we sign out.
+    setFinished(true)
 
-    setTimeout(() => {
-      navigate('/signin')
-    }, 1500)
+    // The reset link signed the user in. Sign out so they log in
+    // again with the new password.
+    const { error: signOutError } =
+      await supabase.auth.signOut()
+
+    if (signOutError) {
+      // Fallback: at least clear the sign-in on this device.
+      await supabase.auth.signOut({ scope: 'local' })
+    }
+
+    navigate('/signin', {
+      replace: true,
+      state: {
+        message:
+          'Your password was updated. Please sign in with your new password.',
+      },
+    })
+  }
+
+  function renderBody() {
+    if (finished) {
+      return (
+        <div className="mt-6 rounded-lg bg-green-50 p-4 text-sm text-green-700">
+          Password updated. Taking you to the sign-in
+          page...
+        </div>
+      )
+    }
+
+    if (authLoading) {
+      return (
+        <div className="mt-6 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
+          Checking your reset link...
+        </div>
+      )
+    }
+
+    if (linkError || !session) {
+      return (
+        <div className="mt-6 space-y-4">
+          <div
+            role="alert"
+            className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800"
+          >
+            {linkError ??
+              'Your password reset session is not ready. The link may have expired or already been used.'}
+          </div>
+
+          <Link
+            to="/forgot-password"
+            className="block w-full rounded-lg bg-blue-600 px-4 py-3 text-center font-medium text-white hover:bg-blue-700"
+          >
+            Request a new reset link
+          </Link>
+        </div>
+      )
+    }
+
+    return (
+      <form
+        onSubmit={handleSubmit}
+        className="mt-6 space-y-4"
+      >
+        <input
+          type="password"
+          value={password}
+          onChange={(event) =>
+            setPassword(event.target.value)
+          }
+          placeholder="New password"
+          required
+          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(event) =>
+            setConfirmPassword(event.target.value)
+          }
+          placeholder="Confirm new password"
+          required
+          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Updating...' : 'Update password'}
+        </button>
+      </form>
+    )
   }
 
   return (
@@ -112,64 +213,7 @@ export default function ResetPassword() {
           Enter your new password below.
         </p>
 
-        {!recoveryReady ? (
-          <div className="mt-6 rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
-            Your password reset session is not ready.
-            Please open the reset link from your email
-            again.
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="mt-6 space-y-4"
-          >
-            <input
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              placeholder="New password"
-              required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(event) =>
-                setConfirmPassword(
-                  event.target.value
-                )
-              }
-              placeholder="Confirm new password"
-              required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-
-            {error && (
-              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            {message && (
-              <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading
-                ? 'Updating...'
-                : 'Update password'}
-            </button>
-          </form>
-        )}
+        {renderBody()}
 
         <Link
           to="/signin"

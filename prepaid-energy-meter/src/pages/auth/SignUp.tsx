@@ -1,12 +1,13 @@
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { supabase } from '../../lib/supabase'
-
-function isValidPhone(phone: string) {
-  return /^\+[1-9]\d{7,14}$/.test(phone)
-}
+import {
+  isValidE164Phone,
+  PHONE_EXAMPLE,
+  PHONE_FORMAT_MESSAGE,
+} from '../../lib/validation'
 
 export default function SignUp() {
   const navigate = useNavigate()
@@ -35,10 +36,10 @@ export default function SignUp() {
       return
     }
 
-    if (!isValidPhone(phone)) {
-      setError(
-        'Phone must use E.164 format, for example +919876543210.'
-      )
+    const cleanPhone = phone.trim()
+
+    if (!isValidE164Phone(cleanPhone)) {
+      setError(PHONE_FORMAT_MESSAGE)
       return
     }
 
@@ -53,7 +54,7 @@ export default function SignUp() {
             `${window.location.origin}/dashboard`,
           data: {
             full_name: fullName,
-            phone,
+            phone: cleanPhone,
           },
         },
       })
@@ -66,7 +67,7 @@ export default function SignUp() {
     }
 
     if (data.session) {
-      navigate('/dashboard')
+      navigate('/dashboard', { replace: true })
       return
     }
 
@@ -106,7 +107,7 @@ export default function SignUp() {
           type="tel"
           value={phone}
           onChange={setPhone}
-          placeholder="+919876543210"
+          placeholder={PHONE_EXAMPLE}
           required
         />
 
@@ -199,7 +200,7 @@ function AuthPage({
 }: {
   title: string
   subtitle: string
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
@@ -229,7 +230,7 @@ function Message({
   children,
 }: {
   type: 'error' | 'success'
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <div
