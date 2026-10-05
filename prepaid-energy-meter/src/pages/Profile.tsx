@@ -1,5 +1,5 @@
-import type {
-  FormEvent,
+import {
+  type FormEvent,
   useEffect,
   useState,
 } from 'react'
