@@ -13,6 +13,10 @@ const normalLinks = [
     path: '/dashboard',
   },
   {
+    label: 'Meters',
+    path: '/meters',
+  },
+  {
     label: 'Recharge',
     path: '/recharge',
   },

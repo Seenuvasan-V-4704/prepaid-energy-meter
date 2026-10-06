@@ -10,8 +10,10 @@ import ProtectedRoute from './components/ProtectedRoute'
 import PublicOnlyRoute from './components/PublicOnlyRoute'
 
 import Admin from './pages/Admin'
+import AddMeter from './pages/AddMeter'
 import Alerts from './pages/Alerts'
 import Dashboard from './pages/Dashboard'
+import Meters from './pages/Meters'
 import Profile from './pages/Profile'
 import Recharge from './pages/Recharge'
 import Settings from './pages/Settings'
@@ -64,6 +66,16 @@ export default function App() {
           <Route
             path="/dashboard"
             element={<Dashboard />}
+          />
+
+          <Route
+            path="/meters"
+            element={<Meters />}
+          />
+
+          <Route
+            path="/meters/add"
+            element={<AddMeter />}
           />
 
           <Route
