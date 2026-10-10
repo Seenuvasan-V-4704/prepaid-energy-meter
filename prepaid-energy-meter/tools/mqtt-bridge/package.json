@@ -1,0 +1,16 @@
+{
+  "name": "mqtt-bridge",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fallback: subscribes to the MQTT broker and forwards meter messages to the device-ingest Edge Function",
+  "type": "module",
+  "scripts": {
+    "start": "node bridge.mjs"
+  },
+  "dependencies": {
+    "mqtt": "^5.16.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

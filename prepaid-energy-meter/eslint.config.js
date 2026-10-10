@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // supabase/ (Deno code) and tools/ (Node scripts) are not part of the website
+  globalIgnores(['dist', 'supabase', 'tools']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

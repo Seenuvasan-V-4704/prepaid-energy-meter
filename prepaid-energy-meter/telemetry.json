@@ -1,0 +1,5 @@
+{
+  "topic": "meters/meter-001/telemetry",
+  "payload": { "seq": 374, "ts": 1759500000, "v": 230, "i": 0.82, "p": 189.7, "e": 13.213000, "relay": 1, "fault": 0 },
+  "clientid": "curl-test"
+}
