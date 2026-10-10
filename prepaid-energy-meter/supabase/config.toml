@@ -421,3 +421,9 @@ verify_jwt = false
 # send-command is called by the logged-in browser: keep JWT checks ON.
 [functions.send-command]
 verify_jwt = true
+
+[functions.create-recharge-order]
+verify_jwt = true
+
+[functions.confirm-recharge]
+verify_jwt = true

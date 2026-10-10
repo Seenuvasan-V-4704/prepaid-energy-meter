@@ -7,6 +7,7 @@ import type { Meter } from '../lib/meters'
 import { DEFAULT_RANGE_MINUTES } from '../lib/series'
 import ChartsPanel from './ChartsPanel'
 import OnlineBadge from './OnlineBadge'
+import RelayCard from './RelayCard'
 import { ErrorBlock } from './StateBlocks'
 import StatCard from './StatCard'
 
@@ -38,6 +39,12 @@ export default function LiveDashboard({ meter }: { meter: Meter }) {
 
         <OnlineBadge lastSeenMs={meter.lastSeenMs} now={now} />
       </div>
+
+      {meter.autoCut && (
+        <div role="alert" className="rounded-xl bg-red-600 p-4 font-medium text-white">
+          Power cut: balance finished. Recharge to restore.
+        </div>
+      )}
 
       {live.latestError && (
         <ErrorBlock
@@ -110,6 +117,8 @@ export default function LiveDashboard({ meter }: { meter: Meter }) {
         />
       </div>
 
+      <RelayCard meter={meter} now={now} />
+      
       <ChartsPanel
         live={live}
         now={now}
